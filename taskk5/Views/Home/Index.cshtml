@@ -1,0 +1,157 @@
+﻿<div class="container">
+    <div class="row">
+        <div class="col-md-auto">
+                <p>Choose region: </p>
+                <select name="country" id="countrySelect" class="form-select" aria-label="Default select example">
+                    <option value="">Select country</option>
+                <option value="en_US;+1(###) ###-##-##">USA</option>
+                <option value="nl;+49(###) ##-###">Dutch</option>
+                <option value="fr;+33(###) ###-###">French</option>
+                </select>
+        </div>
+        <div class="col-md-auto">
+            <p>Errors</p>
+            <input value="0" name="rangeValue" id="rangeInput" type="range" class="form-range" min="0" max="10" step="0.25" id="customRange3">
+            <input value="0" type="number" id="numberInput" class="form-control" min="0" max="1000" step="0.25" placeholder="0-1000">
+        </div>
+        <div class="col-4">
+            <p>Seed</p>
+            <input id="seedInput" type="number" min="0" max="999999999" value="0">
+            <button id="randomSeedButton" class="btn btn-primary">Random Seed</button>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="row">
+        <div class="col">
+            <table id="userTable" class="table">
+                <thead>
+                    <tr>
+                        <th>Number</th>
+                        <th>Identifier</th>
+                        <th>Full Name</th>
+                        <th>Address</th>
+                        <th>Phone</th>
+                    </tr>
+                </thead>
+                <tbody id="userTableBody">
+                    
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    
+    var currentPage = 1;
+    var allUsers = [];
+    var person = 1;
+    const rangeInput = document.getElementById('rangeInput');
+    const numberInput = document.getElementById('numberInput');
+    const selectedCountry = document.getElementById("countrySelect");
+    const seedValue = document.getElementById("seedInput");
+    const randomSeedButton = document.getElementById("randomSeedButton");
+
+    function updateUserTable(country, seedValue, page, numberOfPersons) {
+        var xhr = new XMLHttpRequest();
+        console.log("PageSize: ", numberOfPersons);
+        xhr.open("GET", "/Home/GetUsers?country=" + encodeURIComponent(country) + "&seed=" + seedValue + "&page=" + page + "&numberOfPersons=" + numberOfPersons, true);
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === 4 && xhr.status === 200) {
+                var users = JSON.parse(xhr.responseText);
+                users.forEach(function (user, index) {
+                    allUsers.push(user);
+                });
+                numberInput.value !== 0 ? addErrors(numberInput.value) : printTable(users);
+            }
+        };
+        xhr.send();
+    }
+
+    function isBottomReached() {
+        return (window.innerHeight + window.scrollY) >= document.body.offsetHeight;
+    }
+
+    window.onscroll = function () {
+        if (isBottomReached()) {
+            currentPage++; 
+            var selectedCountry = document.getElementById("countrySelect").value;
+            var seedValue = document.getElementById("seedInput").value;
+            if (selectedCountry !== "") {
+                updateUserTable(selectedCountry, seedValue, currentPage, 10);
+            }
+        }
+    };
+
+    function HandleChange() {
+        allUsers = [];
+        person = 1;
+        var selectedCountry = countrySelect.value;
+        var seedValue = seedInput.value;
+        if (selectedCountry !== "") {
+            currentPage = 1;
+            updateUserTable(selectedCountry, seedValue, currentPage, 20);
+        }
+    }
+
+    selectedCountry.addEventListener("change", HandleChange);
+    seedValue.addEventListener("change", HandleChange);
+
+    randomSeedButton.addEventListener("click", function () {
+        const randomSeed = Math.floor(Math.random() * 1000000000); 
+        seedInput.value = randomSeed; 
+        HandleChange(); 
+    });
+
+    function printTable(users){
+        var tableBody = document.getElementById("userTableBody");
+        if (currentPage === 1) {
+            tableBody.innerHTML = ""; 
+        }
+        users.forEach(function (user, index) {
+            var row = "<tr>";
+            row += "<td>" + person++ + "</td>"; 
+            row += "<td>" + user.identifier + "</td>";
+            row += "<td>" + user.fullName + "</td>";
+            row += "<td>" + user.address + "</td>";
+            row += "<td>" + user.phone + "</td>";
+            row += "</tr>";
+            tableBody.innerHTML += row;
+        });
+    }
+
+    function addErrors(errorValue) {
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", "/Home/SetErrors?error=" + errorValue, true);
+        xhr.setRequestHeader("Content-Type", "application/json");
+
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === 4 && xhr.status === 200) {
+                var tableBody = document.getElementById("userTableBody");
+                tableBody.innerHTML = "";
+                person = 1;
+                var users = JSON.parse(xhr.responseText);
+                printTable(users);
+            }
+        };
+        xhr.send(JSON.stringify(allUsers));
+    }
+
+    rangeInput.addEventListener('change', function () {
+        numberInput.value = this.value;
+        console.log("dasd", this.value);
+        addErrors(this.value);
+    });
+
+    numberInput.addEventListener("change", function () { 
+        var inputValue = this.value;
+        if (inputValue >= 0 && inputValue <= 10) {
+            rangeInput.value = inputValue;
+        }
+        console.log("dasdas: ", inputValue);
+        addErrors(this.value);
+    });
+
+</script>
